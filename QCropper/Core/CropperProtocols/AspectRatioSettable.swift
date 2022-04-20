@@ -20,11 +20,11 @@ extension AspectRatioSettable where Self: CropperViewController {
             let angle = standardizeAngle(rotationAngle)
             if angle.isEqual(to: .pi / 2.0, accuracy: 0.001) ||
                 angle.isEqual(to: .pi * 1.5, accuracy: 0.001) {
-                width = originalImage.size.height
-                height = originalImage.size.width
+                width = contentView.size.height
+                height = contentView.size.width
             } else {
-                width = originalImage.size.width
-                height = originalImage.size.height
+                width = contentView.size.width
+                height = contentView.size.height
             }
 
             if aspectRatioPicker.rotated {

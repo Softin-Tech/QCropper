@@ -111,14 +111,14 @@ extension Rotatable where Self: CropperViewController {
 
             let contentOffset = self.scrollView.contentOffset
             let showingContentCenter = CGPoint(x: contentOffset.x + self.scrollView.bounds.size.width / 2, y: contentOffset.y + self.scrollView.bounds.size.height / 2)
-            let showingContentNormalizedCenter = CGPoint(x: showingContentCenter.x / self.imageView.width, y: showingContentCenter.y / self.imageView.height)
+            let showingContentNormalizedCenter = CGPoint(x: showingContentCenter.x / self.contentView.width, y: showingContentCenter.y / self.contentView.height)
 
             self.scrollView.bounds = CGRect(x: 0, y: 0, width: width, height: height)
             let zoomScale = self.scrollView.zoomScale * scale
             self.willSetScrollViewZoomScale(zoomScale)
             self.scrollView.zoomScale = zoomScale
-            let newContentOffset = CGPoint(x: showingContentNormalizedCenter.x * self.imageView.width - self.scrollView.bounds.size.width * 0.5,
-                                           y: showingContentNormalizedCenter.y * self.imageView.height - self.scrollView.bounds.size.height * 0.5)
+            let newContentOffset = CGPoint(x: showingContentNormalizedCenter.x * self.contentView.width - self.scrollView.bounds.size.width * 0.5,
+                                           y: showingContentNormalizedCenter.y * self.contentView.height - self.scrollView.bounds.size.height * 0.5)
             self.scrollView.contentOffset = self.safeContentOffsetForScrollView(newContentOffset)
             self.scrollView.center = scrollViewCenter
         }, completion: { _ in

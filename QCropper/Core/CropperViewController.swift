@@ -30,14 +30,17 @@ public extension CropperViewControllerDelegate {
 }
 
 open class CropperViewController: UIViewController, Rotatable, StateRestorable, Flipable {
-    public let originalImage: UIImage
+    
+    public let contentView: UIView
     var initialState: CropperState?
     var isCircular: Bool
 
-    public init(originalImage: UIImage, initialState: CropperState? = nil, isCircular: Bool = false) {
-        self.originalImage = originalImage
-        self.initialState = initialState
-        self.isCircular = isCircular
+    public init(contentView: UIView, ratio: CGFloat) {
+        self.contentView = contentView
+        self.contentView.size = CGSize(width: ratio, height: 1.0)
+        
+        self.initialState = nil
+        self.isCircular = false
         super.init(nibName: nil, bundle: nil)
         modalPresentationStyle = .fullScreen
     }
@@ -119,12 +122,6 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
         // sv.showsHorizontalScrollIndicator = true
 
         return sv
-    }()
-
-    lazy var imageView: UIImageView = {
-        let iv = UIImageView(image: self.originalImage)
-        iv.backgroundColor = .clear
-        return iv
     }()
 
     lazy var cropBoxPanGesture: UIPanGestureRecognizer = {
@@ -225,16 +222,13 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
         navigationController?.navigationBar.isHidden = true
         view.clipsToBounds = true
 
-        // TODO: transition
-
-        if originalImage.size.width < 1 || originalImage.size.height < 1 {
-            // TODO: show alert and dismiss
+        if contentView.size.width < 1 || contentView.size.height < 1 {
             return
         }
 
         view.backgroundColor = .clear
 
-        scrollView.addSubview(imageView)
+        scrollView.addSubview(contentView)
 
         if #available(iOS 11.0, *) {
             scrollView.contentInsetAdjustmentBehavior = .never
@@ -421,10 +415,10 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
         defaultCropBoxCenter = CGPoint(x: view.width / 2.0, y: cropRegionInsets.top + maxCropRegion.size.height / 2.0)
         defaultCropBoxSize = {
             var size: CGSize
-            let scaleW = self.originalImage.size.width / self.maxCropRegion.size.width
-            let scaleH = self.originalImage.size.height / self.maxCropRegion.size.height
+            let scaleW = self.contentView.size.width / self.maxCropRegion.size.width
+            let scaleH = 1 / self.maxCropRegion.size.height
             let scale = max(scaleW, scaleH)
-            size = CGSize(width: self.originalImage.size.width / scale, height: self.originalImage.size.height / scale)
+            size = CGSize(width: self.contentView.size.width / scale, height: self.contentView.size.height / scale)
             return size
         }()
 
@@ -439,9 +433,8 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
         scrollView.contentSize = defaultCropBoxSize
         scrollView.contentOffset = .zero
         scrollView.center = backgroundView.convert(defaultCropBoxCenter, to: scrollViewContainer)
-        imageView.transform = .identity
-        imageView.frame = scrollView.bounds
-        imageView.image = originalImage
+        contentView.transform = .identity
+        contentView.frame = scrollView.bounds
         overlay.frame = backgroundView.bounds
         overlay.cropBoxFrame = CGRect(center: defaultCropBoxCenter, size: defaultCropBoxSize)
 
@@ -460,10 +453,10 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
             cropBoxFrame = CGRect(center: defaultCropBoxCenter, size: CGSize(width: maxCropRegion.size.width, height: maxCropRegion.size.width))
             matchScrollViewAndCropView()
         } else {
-            if originalImage.size.width / originalImage.size.height < cropBoxMinSize / maxCropRegion.size.height { // very long
+            if contentView.size.width / contentView.size.height < cropBoxMinSize / maxCropRegion.size.height { // very long
                 cropBoxFrame = CGRect(x: (view.width - cropBoxMinSize) / 2, y: cropRegionInsets.top, width: cropBoxMinSize, height: maxCropRegion.size.height)
                 matchScrollViewAndCropView()
-            } else if originalImage.size.height / originalImage.size.width < cropBoxMinSize / maxCropRegion.size.width { // very wide
+            } else if contentView.size.height / contentView.size.width < cropBoxMinSize / maxCropRegion.size.width { // very wide
                 cropBoxFrame = CGRect(x: cropRegionInsets.left, y: cropRegionInsets.top + (maxCropRegion.size.height - cropBoxMinSize) / 2, width: maxCropRegion.size.width, height: cropBoxMinSize)
                 matchScrollViewAndCropView()
             }
@@ -494,8 +487,8 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
     }
 
     func scrollViewZoomScaleToBounds() -> CGFloat {
-        let scaleW = scrollView.bounds.size.width / imageView.bounds.size.width
-        let scaleH = scrollView.bounds.size.height / imageView.bounds.size.height
+        let scaleW = scrollView.bounds.size.width / contentView.bounds.size.width
+        let scaleH = scrollView.bounds.size.height / contentView.bounds.size.height
         return max(scaleW, scaleH)
     }
 
@@ -509,7 +502,7 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
     }
 
     func photoTranslation() -> CGPoint {
-        let rect = imageView.convert(imageView.bounds, to: view)
+        let rect = contentView.convert(contentView.bounds, to: view)
         let point = CGPoint(x: rect.origin.x + rect.size.width / 2, y: rect.origin.y + rect.size.height / 2)
         let zeroPoint = CGPoint(x: view.frame.width / 2, y: defaultCropBoxCenter.y)
 
@@ -544,9 +537,9 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
 
         let cropBoxFrameBeforeZoom = targetCropBoxFrame
 
-        let zoomRect = view.convert(cropBoxFrameBeforeZoom, to: imageView) // zoomRect is base on imageView when scrollView.zoomScale = 1
+        let zoomRect = view.convert(cropBoxFrameBeforeZoom, to: contentView) // zoomRect is base on imageView when scrollView.zoomScale = 1
         let center = CGPoint(x: zoomRect.origin.x + zoomRect.size.width / 2, y: zoomRect.origin.y + zoomRect.size.height / 2)
-        let normalizedCenter = CGPoint(x: center.x / (imageView.width / scrollView.zoomScale), y: center.y / (imageView.height / scrollView.zoomScale))
+        let normalizedCenter = CGPoint(x: center.x / (contentView.width / scrollView.zoomScale), y: center.y / (contentView.height / scrollView.zoomScale))
 
         UIView.animate(withDuration: animated ? 0.25 : 0, animations: {
             self.overlay.setCropBoxFrame(CGRect(center: self.defaultCropBoxCenter, size: newCropBounds.size), blurLayerAnimated: blurLayerAnimated)
@@ -565,8 +558,8 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
 
             self.scrollView.zoomScale = zoomScale
 
-            let contentOffset = CGPoint(x: normalizedCenter.x * self.imageView.width - self.scrollView.bounds.size.width * 0.5,
-                                        y: normalizedCenter.y * self.imageView.height - self.scrollView.bounds.size.height * 0.5)
+            let contentOffset = CGPoint(x: normalizedCenter.x * self.contentView.width - self.scrollView.bounds.size.width * 0.5,
+                                        y: normalizedCenter.y * self.contentView.height - self.scrollView.bounds.size.height * 0.5)
             self.scrollView.contentOffset = self.safeContentOffsetForScrollView(contentOffset)
         }, completion: { _ in
             completion?()
@@ -634,7 +627,7 @@ open class CropperViewController: UIViewController, Rotatable, StateRestorable, 
 extension CropperViewController: UIScrollViewDelegate {
 
     public func viewForZooming(in _: UIScrollView) -> UIView? {
-        return imageView
+        return contentView
     }
 
     public func scrollViewWillBeginZooming(_: UIScrollView, with _: UIView?) {
